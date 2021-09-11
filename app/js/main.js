@@ -1,74 +1,94 @@
 'use strict';
-//Получаю все таблицы на странице
-//const $tables = document.querySelectorAll('.table');
-const $table = document.querySelector('.table');
-$tables = [$table.cloneNode(true)];
+const $tables = document.querySelectorAll('table');
 
-//Перебираю таблицы
-$tables.forEach($itemTable => {
-  //Получаю все строки в таблице
-  const $trs = $itemTable.querySelectorAll('tr');
-  const $array = [];
+if ($tables.length) {
+  $tables.forEach($table => {
+    //$table = $table.cloneNode(true);
+    const trArray = Array.prototype.slice.call($table.querySelectorAll('tr')),
+          array = [],
+          atribute = {
+            'rowspan': [],
+            'colspan': []
+          };
+    
+    trArray.forEach(($tr, i) => {
+      let tdArray = Array.prototype.slice.call($tr.querySelectorAll('td'));
+      if (!tdArray.length) {
+        tdArray = Array.prototype.slice.call($tr.querySelectorAll('th'));
+      }
+      elementEntryWithAttribute(atribute, tdArray, i);
+      array.push(tdArray);
+    });
+    //createNewTable(rotateArray(returningAttributes(array, atribute)));
+    replacementTable(rotateArray(returningAttributes(array, atribute)), $table)
+  });
 
-  //Перебираю каждую строку
-  $trs.forEach(($tr, j) => {
-    //Получаю массив элементов в строке
-    let $tds = $tr.querySelectorAll('td');
-    const $tdsArray = [];
+  clearPlug();
+}
 
-    if (!$tds.length) {
-      $tds = $tr.querySelectorAll('th');
+function elementEntryWithAttribute(atribute, tdArray, i) {
+  tdArray.forEach(($td, j) => {
+    const colAtribute = $td.getAttribute('colspan'),
+          rowAtribute = $td.getAttribute('rowspan');
+
+    if (colAtribute) {
+      const plug = document.createElement('td');
+      plug.classList.add('table-plug');
+      tdArray.splice(j+1, 0, plug);
+      $td.removeAttribute('colspan');
+      atribute.colspan.push([i, j, colAtribute]);
     }
 
-    //Меняю атрибуты в таблице
-    $tds.forEach($td => {
-      const colAtribute = $td.getAttribute('colspan');
-      //Если я нахожу атрибут обьединяющий столбцы в один, то я меняю его на rowspan и все последующие элементы массива я должен сместить и удалить пустые элементы ниже строки
-      if (colAtribute) {
-        $td.removeAttribute('colspan');
-        $tdsArray.push($td);
-        for(let i = 0; i < colAtribute-1; i++) {
-          $tdsArray.push(null);
-        }
-        $td.setAttribute('rowspan', colAtribute);
-      } else {
-        $tdsArray.push($td);
-      }
+    if (rowAtribute) {
+      $td.removeAttribute('rowspan');
+      atribute.rowspan.push([i, j, rowAtribute]);
+    }
+  });
+}
 
-      //Так же и с rowspan
-      const rowAtribute = $td.getAttribute('rowspan');
-      if (rowAtribute) {
-        $td.removeAttribute('rowspan');
-        $td.setAttribute('colspan', rowAtribute);
-      }
-    });
+function rotateArray(array) {
+  return array.map((val, index) => array.map(row => row[index]));
+}
 
-    //Добавляю элементы в массив
-    $array.push($tdsArray);
+function returningAttributes(array, atribute) {
+  atribute.rowspan.forEach(item => {
+    array[item[0]][item[1]].setAttribute('colspan', item[2]);
+    for (let i = 1; i < item[2]; i++) {
+      const plug = document.createElement('td');
+      plug.classList.add('table-plug');
+      array[item[0]+i].splice(item[1], 0, plug);
+    }
   });
 
-  console.log($array);
+  atribute.colspan.forEach(item => {
+    array[item[0]][item[1]].setAttribute('rowspan', item[2]);
+  });
 
-  //Разворачиваю массив и создаю элемент таблицы
-  const $newArray = $array.map((val, index) => $array.map(row => row[index]));
+  return array;
+}
+
+function createNewTable(array) {
   const $newTable = document.createElement('table');
-
-  //Перебираю развернутый массив и добавляю в таблицу элементы с него
-  $newArray.forEach(($row, i) => {
+  array.forEach(tr => {
     const $tr = document.createElement('tr');
-
-    $row.forEach(($data, j) => {
-      if ($data) {
-        $tr.append($data);
-      } else {
-        //$tr.append(document.createElement('td'));
-        //console.log(i, j) 
-      } 
-      
+    tr.forEach($td => {
+      $tr.append($td)
     });
-
     $newTable.append($tr);
   });
-
   document.querySelector('.new-table').append($newTable);
-});
+}
+
+function replacementTable(array, $table) {
+  array.forEach(tr => {
+    const $tr = document.createElement('tr');
+    tr.forEach($td => {
+      $tr.append($td)
+    });
+    $table.append($tr);
+  });
+}
+
+function clearPlug() {
+  document.querySelectorAll('.table-plug').forEach($item => $item.remove());
+}
